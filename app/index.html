@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitBill — Group Expense Splitter</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">🧾</span>
+    <div>
+      <h1>SplitBill</h1>
+      <p class="tagline">Split group expenses. Settle up without the spreadsheet.</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <label class="currency-switch" title="Currency changes labels and formatting only — amounts are not converted">
+      Currency
+      <select id="currency-select" data-testid="currency-select">
+        <option value="IDR">IDR (Rp)</option>
+        <option value="USD">USD ($)</option>
+      </select>
+    </label>
+    <button id="reset-btn" data-testid="reset-btn" class="btn btn-ghost" type="button">Reset all</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- People -->
+  <section class="card" aria-labelledby="people-heading">
+    <h2 id="people-heading">👥 People</h2>
+    <form id="add-person-form" class="inline-form">
+      <input id="person-name-input" data-testid="person-name-input" type="text"
+             placeholder="Add a person, e.g. Ana" maxlength="40" autocomplete="off">
+      <button id="add-person-btn" data-testid="add-person-btn" class="btn btn-primary" type="submit">Add</button>
+    </form>
+    <p id="person-error" data-testid="person-error" class="error" role="alert" hidden></p>
+    <p id="people-empty" data-testid="people-empty" class="empty-state">
+      No people yet. Add at least two people to start splitting expenses.
+    </p>
+    <ul id="people-list" data-testid="people-list" class="people-list"></ul>
+  </section>
+
+  <!-- Add expense -->
+  <section class="card" aria-labelledby="expense-heading">
+    <h2 id="expense-heading">➕ Add expense</h2>
+    <form id="add-expense-form">
+      <label class="field">
+        <span>Description</span>
+        <input id="expense-desc-input" data-testid="expense-desc-input" type="text"
+               placeholder="e.g. Team dinner" maxlength="80" autocomplete="off">
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Amount (<span class="currency-symbol" data-currency-symbol>Rp</span>)</span>
+          <input id="expense-amount-input" data-testid="expense-amount-input" type="number"
+                 min="0" step="1" inputmode="numeric" placeholder="0">
+        </label>
+        <label class="field">
+          <span>Tip %</span>
+          <input id="expense-tip-input" data-testid="expense-tip-input" type="number"
+                 min="0" step="1" inputmode="numeric" value="0">
+        </label>
+        <label class="field">
+          <span>Paid by</span>
+          <select id="expense-payer-select" data-testid="expense-payer-select"></select>
+        </label>
+      </div>
+
+      <fieldset class="split-box">
+        <legend>Split</legend>
+        <div class="split-mode-toggle" role="radiogroup" aria-label="Split mode">
+          <label><input type="radio" name="split-mode" value="equal" checked data-testid="split-mode-equal"> Equally</label>
+          <label><input type="radio" name="split-mode" value="custom" data-testid="split-mode-custom"> Custom amounts</label>
+        </div>
+        <div id="split-members" data-testid="split-members" class="split-members"></div>
+        <p id="custom-split-summary" data-testid="custom-split-summary" class="hint" hidden></p>
+      </fieldset>
+
+      <p id="expense-error" data-testid="expense-error" class="error" role="alert" hidden></p>
+      <button id="add-expense-btn" data-testid="add-expense-btn" class="btn btn-primary btn-wide" type="submit">
+        Add expense
+      </button>
+    </form>
+  </section>
+
+  <!-- Expenses list -->
+  <section class="card" aria-labelledby="expenses-heading">
+    <h2 id="expenses-heading">🧾 Expenses</h2>
+    <p id="expenses-empty" data-testid="expenses-empty" class="empty-state">
+      No expenses yet. Add your first expense above.
+    </p>
+    <ul id="expense-list" data-testid="expense-list" class="expense-list"></ul>
+    <div id="totals-bar" data-testid="totals-bar" class="totals-bar" hidden>
+      <span>Total spent: <strong id="total-spent" data-testid="total-spent"></strong></span>
+      <span>Total tips: <strong id="total-tips" data-testid="total-tips"></strong></span>
+    </div>
+  </section>
+
+  <!-- Balances & settlement -->
+  <section class="card" aria-labelledby="balances-heading">
+    <h2 id="balances-heading">⚖️ Balances</h2>
+    <p id="balances-empty" data-testid="balances-empty" class="empty-state">
+      Balances will appear here once people and expenses exist.
+    </p>
+    <ul id="balance-list" data-testid="balance-list" class="balance-list"></ul>
+
+    <h3 class="settle-heading">💸 Who pays whom</h3>
+    <p id="settled-state" data-testid="settled-state" class="settled-state" hidden>
+      🎉 Everyone is settled up. Nobody owes anything.
+    </p>
+    <ul id="settlement-list" data-testid="settlement-list" class="settlement-list"></ul>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>All amounts are whole currency units. Equal splits distribute the rounding remainder
+     one unit at a time, in member order, so shares always add up exactly.
+     Switching currency changes labels/formatting only. Data lives in your browser (localStorage).</p>
+</footer>
+
+<!-- Confirm dialog (remove person / reset) -->
+<div id="confirm-modal" data-testid="confirm-modal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-message" data-testid="confirm-message"></p>
+    <div class="modal-actions">
+      <button id="confirm-cancel-btn" data-testid="confirm-cancel-btn" class="btn" type="button">Cancel</button>
+      <button id="confirm-ok-btn" data-testid="confirm-ok-btn" class="btn btn-danger" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
